@@ -8,18 +8,16 @@ resource "aws_lambda_function" "lambda_function" {
   runtime       = var.runtime
   function_name = local.name
   s3_bucket     = local.name
-  s3_key        = "lambda.zip"
+  s3_key        = "${var.lambda_version}/lambda.zip"
   // filename      = "lambda.zip"
   // source_code_hash = data.archive_file.source.output_base64sha256
-  depends_on = [aws_cloudwatch_log_group.log_group]
+  depends_on = [aws_cloudwatch_log_group.log_group, aws_s3_bucket_object.version]
 }
 
 resource "aws_cloudwatch_log_group" "log_group" {
   name              = "/aws/lambda/${local.name}"
   retention_in_days = 7
 }
-
-
 
 resource "aws_s3_bucket" "lambda_versions" {
   bucket        = local.name
@@ -33,7 +31,7 @@ resource "aws_s3_bucket_object" "version" {
   key        = "${var.lambda_version}/lambda.zip"
   acl        = "private"
   source     = "lambda.zip"
-  etag       = data.archive_file.source.output_base64sha256
+  etag       = data.archive_file.source.output_md5
   depends_on = [data.archive_file.source]
 }
 
