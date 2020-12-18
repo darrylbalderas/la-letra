@@ -5,3 +5,5 @@ data "archive_file" "source" {
   output_path = "${path.module}/lambda.zip"
   excludes    = []
 }
+
+data "aws_caller_identity" "current" {}

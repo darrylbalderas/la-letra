@@ -1,6 +1,9 @@
 locals {
-  name = "${var.function_name}-${var.region}-${var.env}"
+  name      = "${var.function_name}-${var.region}-${var.env}"
+  accountId = data.aws_caller_identity.current.account_id
+  region    = var.region
 }
+
 
 resource "aws_lambda_function" "lambda_function" {
   role          = aws_iam_role.lambda_exec_role.arn
