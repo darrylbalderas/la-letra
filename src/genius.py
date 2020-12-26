@@ -23,7 +23,11 @@ class GeniusApi:
             "Authorization": "Bearer " + self.configuration.access_token,
         }
         if parameters:
-            url = f'{url}?q={"%20".join(parameters.split())}'
+
+            url_parameters = []
+            for k, v in parameters.items():
+                url_parameters.append(f"{k}={v}")
+            url = f'{url}?{"".join(url_parameters)}'
 
         return self._verify_request(requests.get(url, headers=headers).json())
 
@@ -45,9 +49,10 @@ class GeniusApi:
                 possible_id = artist_id
         return possible_id
 
-    def artist_id(self, query):
+    def artist_id(self, artist_name):
         url = f"{self.configuration.url}/search"
-        _, response = self._perform_get_request(url, parameters=query)
+        parameters = {'q': "%20".join(artist_name.split())}
+        _, response = self._perform_get_request(url, parameters=parameters)
 
         if not response:
             return []
@@ -59,6 +64,17 @@ class GeniusApi:
 
         return self.possible_artist_id(artists)
 
+    def is_primary_artist(self, song, artist_id):
+        primary_artist = song['primary_artist']
+        return primary_artist['id'] == artist_id
+
+    def is_original(self, song):
+        pyongs_count = song['pyongs_count']
+        annotation_count = song['annotation_count']
+        is_pyongs_count = pyongs_count is not None and pyongs_count > 0
+        is_annotation_count = annotation_count is not None and annotation_count > 0
+        return '(' not in song['title'] and is_pyongs_count and is_annotation_count
+
     def artist_lyrics_url(self, artist_name: str):
         artist_id = self.artist_id(artist_name)
         url = f"{self.configuration.url}/artists/{artist_id}/songs"
@@ -69,6 +85,8 @@ class GeniusApi:
 
         # TODO: Make requests to grab all the pages
 
-        # TODO: Filter response to get only primary artist that matches artist name
-
-        return [s['url'] for s in response['songs']]
+        # pprint(response['songs'])
+        return [
+            s for s in response['songs']
+            if self.is_primary_artist(s, artist_id) and self.is_original(s)
+        ]
