@@ -1,6 +1,7 @@
 from .config import Configuration
 import requests
 from http import HTTPStatus
+from pprint import pprint
 
 
 class GeniusApi:
@@ -42,19 +43,32 @@ class GeniusApi:
 
             if frequency[artist_id] > frequency[possible_id]:
                 possible_id = artist_id
-
         return possible_id
 
-    def get_artist(self, query):
+    def artist_id(self, query):
         url = f"{self.configuration.url}/search"
-        status_code, response = self._perform_get_request(url, parameters=query)
-        if status_code != HTTPStatus.OK:
-            return {}
+        _, response = self._perform_get_request(url, parameters=query)
 
-        artists = []
-        for hit in response["hits"]:
-            artist = hit["result"].get("primary_artist")
-            if artist:
-                artists.append(artist)
+        if not response:
+            return []
+
+        artists = [
+            h["result"].get("primary_artist") for h in response["hits"]
+            if h["result"].get("primary_artist")
+        ]
 
         return self.possible_artist_id(artists)
+
+    def artist_lyrics_url(self, artist_name: str):
+        artist_id = self.artist_id(artist_name)
+        url = f"{self.configuration.url}/artists/{artist_id}/songs"
+        _, response = self._perform_get_request(url)
+
+        if not response:
+            return []
+
+        # TODO: Make requests to grab all the pages
+
+        # TODO: Filter response to get only primary artist that matches artist name
+
+        return [s['url'] for s in response['songs']]
