@@ -12,9 +12,9 @@ class GeniusApi:
         try:
             status_code = response["meta"]["status"]
             if status_code != HTTPStatus.ACCEPTED and status_code != HTTPStatus.OK:
-                return HTTPStatus.UNAUTHORIZED, {}
+                return HTTPStatus(status_code), {}
         except Exception:
-            return HTTPStatus.BAD_REQUEST, {}
+            return HTTPStatus(response["meta"]["status"]), {}
         return HTTPStatus.OK, response["response"]
 
     def _perform_get_request(self, url, parameters=None):
@@ -27,7 +27,7 @@ class GeniusApi:
             url_parameters = []
             for k, v in parameters.items():
                 url_parameters.append(f"{k}={v}")
-            url = f'{url}?{"".join(url_parameters)}'
+            url = f'{url}?{"&".join(url_parameters)}'
 
         return self._verify_request(requests.get(url, headers=headers).json())
 
@@ -78,15 +78,27 @@ class GeniusApi:
     def artist_lyrics_url(self, artist_name: str):
         artist_id = self.artist_id(artist_name)
         url = f"{self.configuration.url}/artists/{artist_id}/songs"
-        _, response = self._perform_get_request(url)
 
-        if not response:
-            return []
+        current_page = 1
 
-        # TODO: Make requests to grab all the pages
+        # TODO: Move this to configuration
+        num_pages = 8
 
-        # pprint(response['songs'])
-        return [
-            s for s in response['songs']
-            if self.is_primary_artist(s, artist_id) and self.is_original(s)
-        ]
+        status_code = HTTPStatus.OK
+
+        lyrics = []
+
+        while status_code == HTTPStatus.OK and current_page <= num_pages:
+            parameters = {'sort': 'popularity', 'page': current_page}
+            status_code, response = self._perform_get_request(url,
+                                                              parameters=parameters)
+            if not response:
+                return []
+
+            for s in response['songs']:
+                if self.is_primary_artist(s, artist_id) and self.is_original(s):
+                    lyrics.append(s['url'])
+
+            current_page += 1
+
+        return lyrics
