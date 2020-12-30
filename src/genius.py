@@ -1,7 +1,6 @@
 from .config import Configuration
 import requests
 from http import HTTPStatus
-from pprint import pprint
 
 
 class GeniusApi:
