@@ -64,8 +64,7 @@ class GeniusApi:
         return self.possible_artist_id(artists)
 
     def is_primary_artist(self, song, artist_id):
-        primary_artist = song['primary_artist']
-        return primary_artist['id'] == artist_id
+        return song['primary_artist']['id'] == artist_id
 
     def is_original(self, song):
         pyongs_count = song['pyongs_count']
@@ -76,28 +75,26 @@ class GeniusApi:
 
     def artist_lyrics_url(self, artist_name: str):
         artist_id = self.artist_id(artist_name)
+        if not artist_id:
+            return []
         url = f"{self.configuration.url}/artists/{artist_id}/songs"
-
         current_page = 1
-
         # TODO: Move this to configuration
         num_pages = 8
-
         status_code = HTTPStatus.OK
-
-        lyrics = []
-
+        lyrics_urls = []
         while status_code == HTTPStatus.OK and current_page <= num_pages:
-            parameters = {'sort': 'popularity', 'page': current_page}
             status_code, response = self._perform_get_request(url,
-                                                              parameters=parameters)
+                                                              parameters={
+                                                                  'sort': 'popularity',
+                                                                  'page': current_page
+                                                              })
             if not response:
-                return []
+                return lyrics_urls
 
-            for s in response['songs']:
-                if self.is_primary_artist(s, artist_id) and self.is_original(s):
-                    lyrics.append(s['url'])
+            for song in response['songs']:
+                if self.is_primary_artist(song, artist_id) and self.is_original(song):
+                    lyrics_urls.append(song['url'])
 
             current_page += 1
-
-        return lyrics
+        return lyrics_urls
