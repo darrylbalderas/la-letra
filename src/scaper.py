@@ -1,51 +1,48 @@
 from bs4 import BeautifulSoup
 
 from selenium import webdriver
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
+import os
+import time
 
 
 class LyricParser:
     def __init__(self, download_location=None) -> None:
-        chrome_options = webdriver.ChromeOptions()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument('--window-size=1280x1696')
-        chrome_options.add_argument('--user-data-dir=/tmp/user-data')
-        chrome_options.add_argument('--hide-scrollbars')
-        chrome_options.add_argument('--enable-logging')
-        chrome_options.add_argument('--log-level=0')
-        chrome_options.add_argument('--v=99')
-        chrome_options.add_argument('--single-process')
-        chrome_options.add_argument('--data-path=/tmp/data-path')
-        chrome_options.add_argument('--ignore-certificate-errors')
-        chrome_options.add_argument('--homedir=/tmp')
-        chrome_options.add_argument('--disk-cache-dir=/tmp/cache-dir')
-        chrome_options.add_argument(
-            'user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
-                (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36')
+        # TODO: Add user-agent
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument('--enable-javascript')
+        # chrome_options.add_argument(
+        #     'user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
+        #         (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36')
+        # download the chrome driver from https://sites.google.com/a/chromium.org/chromedriver/downloads and put it in the
+        # current directory
+        chrome_driver = os.getcwd() + "/chromedriver"
+        self.browser = webdriver.Chrome(chrome_options=chrome_options,
+                                        executable_path=chrome_driver)
 
-        # chrome_options.binary_location = os.getcwd() + "/bin/headless-chromium"
-        self._driver = webdriver.Chrome(ChromeDriverManager().install())
-        # self._driver = webdriver.Chrome(
-        #                                 chrome_options=chrome_options)
+    def get_page_source(self, url):
+        self.browser.refresh()
+        self.browser.get(url)
+        time.sleep(0.5)
+        self.browser.refresh()
+        return self.browser.page_source
 
-    def validate_tags(self, tag):
-        "Remove tags that are not text or anchor tags"
-        is_break = tag.name == 'br' or tag.name == 'defer-compile'
-        is_lyric_section = tag.name is None and tag.startswith('[')
-        return is_break or is_lyric_section
-
-    def parse_tag(self, tag):
-        # TODO: Create a Lyric object that holds link, text and category
-        is_anchor = tag.name == 'a'
-        return tag if not is_anchor else tag.text
+    def get_lyrics(self, html_content, lyrics):
+        for tag in html_content:
+            if isinstance(tag, str) and not tag.startswith('['):
+                lyrics.append(tag)
+            elif tag.name == 'br' or tag.name == 'defer-compile':
+                continue
+            elif tag.name == 'a':
+                self.get_lyrics(tag, lyrics)
 
     def apply(self, url):
-        self._driver.get(url)
-        soup = BeautifulSoup(self._driver.page_source, 'html.parser')
+        soup = BeautifulSoup(self.get_page_source(url), 'html.parser')
         html_content = soup.select("p")[0]
-        return [self.parse_tag(tag) for tag in html_content if self.validate_tags(tag)]
+        lyrics = []
+        self.get_lyrics(html_content, lyrics)
+        return lyrics
 
     def close(self):
-        self._driver.quit()
+        self.browser.quit()

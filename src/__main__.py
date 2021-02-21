@@ -3,6 +3,9 @@ from .config import Configuration
 
 from .genius import GeniusApi
 from src.scaper import LyricParser
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def main():
@@ -13,7 +16,7 @@ def main():
     lyric_parser = LyricParser()
 
     song_lyrics = []
-    for url in lyric_urls:
+    for url in lyric_urls[:1]:
         song_lyrics.append(lyric_parser.apply(url))
 
     lyric_parser.close()
